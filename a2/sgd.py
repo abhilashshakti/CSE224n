@@ -80,13 +80,13 @@ def sgd(f, x0, step, iterations, postprocessing=None, useSaved=False,
         postprocessing = lambda x: x
 
     exploss = None
-
     for iter in range(start_iter + 1, iterations + 1):
         # You might want to print the progress every few iterations.
 
         loss = None
         ### YOUR CODE HERE
-
+        loss, gradient = f(x)
+        x = x - step*gradient
         ### END YOUR CODE
 
         x = postprocessing(x)
