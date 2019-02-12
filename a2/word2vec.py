@@ -107,21 +107,18 @@ def negSamplingLossAndGradient(
     # wish to match the autograder and receive points!
     negSampleWordIndices = getNegativeSamples(outsideWordIdx, dataset, K)
     indices = [outsideWordIdx] + negSampleWordIndices
-    mult = -1 * np.ones((len(indices),1))  # (k+1,1)
-    mult[0] = 1
 
-    centerWordVec = centerWordVec.reshape(1, centerWordVec.shape[0])  # (1,d)
-    otherWordVecs = outsideVectors[indices] # (K+1,d)
+    dot = outsideVectors.dot(centerWordVec)
+    loss = -np.log(sigmoid(dot[outsideWordIdx])) - np.sum(np.log(sigmoid(-dot[indices[1:]])))
 
-    ### YOUR CODE HERE
-    ### Please use your implementation of sigmoid in here.
-    loss = -np.sum(np.log(sigmoid(centerWordVec.dot(otherWordVecs.T) * mult)))  # (1, K+1)
-    gradCenterVec = np.sum(np.dot(mult*(sigmoid(centerWordVec.dot(otherWordVecs.T) * mult) - 1), otherWordVecs), axis=0)
+    gradCenterVec = (sigmoid(dot[outsideWordIdx]) - 1)*outsideVectors[outsideWordIdx]
+    tmp = (sigmoid(-dot[indices[1:]]) - 1).reshape(len(negSampleWordIndices),1)
+    gradCenterVec -= np.sum(tmp*outsideVectors[indices[1:]], axis=0)
 
-    tmp = centerWordVec.dot(otherWordVecs.T)
-    tmp = (tmp.T * mult) - 1
-    gradOutsideVecs = mult * np.dot(sigmoid(tmp), centerWordVec)
-    ### END YOUR CODE
+    gradOutsideVecs = np.zeros(outsideVectors.shape)
+    gradOutsideVecs[outsideWordIdx] = (sigmoid(dot[outsideWordIdx]) - 1)*centerWordVec
+    for k in indices[1:]:
+        gradOutsideVecs[k] += -(sigmoid(-dot[k]) - 1)*centerWordVec
 
     return loss, gradCenterVec, gradOutsideVecs
 
@@ -156,13 +153,46 @@ def skipgram(currentCenterWord, windowSize, outsideWords, word2Ind,
     gradOutsideVectors -- the gradient with respect to the outside word vectors
                         (dJ / dU in the pdf handout)
     """
-    loss = 400.0
-    gradCenterVecs = np.zeros(centerWordVectors.shape)
-    gradOutsideVectors = np.zeros(outsideVectors.shape)
+    loss = 0.0
+    gradCenterVecs = np.zeros(centerWordVectors.shape)  # (n,d)
+    gradOutsideVectors = np.zeros(outsideVectors.shape)  # (n,d)
+    centerWordVec = centerWordVectors[word2Ind[currentCenterWord]]
 
     ### YOUR CODE HERE
+    for outsideWord in outsideWords:
+        _loss, _gradCenter, _gradOutside = word2vecLossAndGradient(
+                                        centerWordVec,  # (d,)
+                                        word2Ind[outsideWord],
+                                        outsideVectors,  # (n,d)
+                                        dataset
+                                        )
 
+        loss += _loss
+        # update only the currentCenterWord index, others still remain zero
+        gradCenterVecs[word2Ind[currentCenterWord]] += _gradCenter.squeeze()
+        gradOutsideVectors += _gradOutside
     ### END YOUR CODE
+
+    # cost = 0.0
+    # gradIn = np.zeros(centerWordVectors.shape)
+    # gradOut = np.zeros(outsideVectors.shape)
+    #
+    # ### YOUR CODE HERE
+    # idx = word2Ind[currentCenterWord]
+    # predicted = centerWordVectors[idx]
+    # for word in outsideWords:
+    #     target = word2Ind[word]
+    #     _cost, _gradPred, _grad = word2vecLossAndGradient(
+    #         predicted, target, outsideVectors, dataset)
+    #     cost += _cost
+    #     print('_gradPred shape',_gradPred.shape)
+    #     gradIn[idx] += np.squeeze(_gradPred)
+    #     print('_grad shape', _grad.shape)
+    #     gradOut += _grad
+    #
+    # ### END YOUR CODE
+
+    # return cost, gradIn, gradOut
 
     return loss, gradCenterVecs, gradOutsideVectors
 
@@ -228,7 +258,7 @@ def test_word2vec():
     print ("Your Result:")
     print("Loss: {}\nGradient wrt Center Vectors (dJ/dV):\n {}\nGradient wrt Outside Vectors (dJ/dU):\n {}\n".format(
             *skipgram("c", 3, ["a", "b", "e", "d", "b", "c"],
-                dummy_tokens, dummy_vectors[:5,:], dummy_vectors[5:,:], dataset) 
+                dummy_tokens, dummy_vectors[:5,:], dummy_vectors[5:,:], dataset)
         )
     )
 
