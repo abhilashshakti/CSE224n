@@ -97,24 +97,12 @@ def make_windowed_data(data, start, end, window_size = 1):
     windowed_data = []
     for sentence, labels in data:
     ### YOUR CODE HERE (5-20 lines)
-
-    # Check this: The code below can be improved
-        for i in range(len(sentence)):
-            start_list = (window_size - i)*start
-            left_list = sentence[i-window_size:i]
-            right_list = sentence[i+1:i+window_size+1]
-            N = len(sentence)
-            end_list = (i + window_size - N + 1)*end
-
-            curr_list = start_list
-            curr_list += [x for l in left_list for x in l]
-            curr_list += sentence[i]
-            curr_list += [x for l in right_list for x in l]
-            curr_list += end_list
-
-            windowed_data.append((curr_list, labels[i]))
-    # ### END YOUR CODE
-
+        sentence = [start*window_size] + sentence + [end*window_size]
+        for i in range(window_size,len(sentence)-window_size):
+            curr_list = sentence[i-window_size:i+window_size+1]
+            curr_list = [x for l in curr_list for x in l]
+            windowed_data.append((curr_list, labels[i - window_size]))
+    ### END YOUR CODE
 
     return windowed_data
 
